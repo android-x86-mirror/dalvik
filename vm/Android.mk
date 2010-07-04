@@ -41,7 +41,7 @@ include $(LOCAL_PATH)/ReconfigureDvm.mk
 
 # Overwrite default settings
 ifeq ($(TARGET_SIMULATOR),false)
-    LOCAL_PRELINK_MODULE := true
+    LOCAL_PRELINK_MODULE := $(if $(filter-out x86,$(TARGET_ARCH)),true,false)
 endif
 LOCAL_MODULE_TAGS := user
 LOCAL_MODULE := libdvm
