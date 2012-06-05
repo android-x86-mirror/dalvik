@@ -19,6 +19,11 @@ dvm_os := $(TARGET_OS)
 dvm_arch := $(TARGET_ARCH)
 dvm_arch_variant := $(TARGET_ARCH_VARIANT)
 
+# for single arch-variant if x86
+ifeq ($(dvm_arch),x86)
+  dvm_arch_variant := x86
+endif
+
 include $(LOCAL_PATH)/Dvm.mk
 
 LOCAL_SHARED_LIBRARIES += \
