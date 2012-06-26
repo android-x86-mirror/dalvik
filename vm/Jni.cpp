@@ -701,6 +701,8 @@ static void dumpCandidateMethods(ClassObject* clazz, const char* methodName, con
     dumpMethods(clazz->directMethods, clazz->directMethodCount, methodName);
 }
 
+extern int global_is_arm;
+
 /*
  * Register a method that uses JNI calling conventions.
  */
@@ -760,6 +762,9 @@ static bool dvmRegisterJNIMethod(ClassObject* clazz, const char* methodName,
 
     method->fastJni = fastJni;
     dvmUseJNIBridge(method, fnPtr);
+
+    if (global_is_arm)
+	method->is_arm = 1;
 
     LOGV("JNI-registered %s.%s:%s", clazz->descriptor, methodName, signature);
     return true;
@@ -1084,6 +1089,72 @@ static inline void convertReferenceResult(JNIEnv* env, JValue* pResult,
     }
 }
 
+extern void (*h_dvmHoudiniPlatformInvoke)(void*, ClassObject*, int, int, const u4*, const char*, void*, JValue *);
+
+void my_dvmPlatformInvoke(void* pEnv, ClassObject* clazz, int argInfo, int argc, const u4* argv, const char* signature, void* func, JValue* pReturn) {
+    if (h_dvmHoudiniPlatformInvoke) {
+	global_is_arm = 1;
+	h_dvmHoudiniPlatformInvoke(pEnv, clazz, argInfo, argc, argv, signature, func, pReturn);
+	global_is_arm = 0;
+    }
+}
+
+#if 0
+extern void (* h_NativeMethodHelper)(int, void *, int, JValue *, int, unsigned char *, void *);
+
+void my_dvmPlatformInvoke(void* pEnv, ClassObject* clazz, int argInfo, int argc, const u4* argv, const char* signature, void* func, JValue* pReturn) {
+    const int kMaxArgs = argc+2;    /* +1 for env, maybe +1 for clazz */
+    unsigned char types[kMaxArgs];
+    void* values[kMaxArgs];
+    char sigByte;
+    int dstArg=0;
+    const char *orig_sig = signature;
+    char first_sig = signature[0];
+
+    LOGE("my_dvmPlatformInvoke() called with clazz=%p argc=%d signature=%s func=%p\n", clazz, argc, signature, func);
+    for (int j=0;j<argc;j++) {
+	LOGE("    argv[%d] = %X\n", j, argv[j]);
+    }
+
+    memset(types, 0, sizeof(types));
+    memset(values, 0, sizeof(values));
+
+    types[0] = 0x4C;
+    types[1] = 0x4C;
+
+    values[0] = &pEnv;
+    if (clazz != NULL) {
+        values[1] = &clazz;
+    } else {
+        values[1] = (void*) argv++;
+    }
+    dstArg = 2;
+
+    /*
+     * Scan the types out of the short signature.  Use them to fill out the
+     * "types" array.  Store the start address of the argument in "values".
+     */
+    /* while ((sigByte = *++signature) != '\0') {
+        types[dstArg] = sigByte;
+        values[dstArg++] = (void*) argv++;
+        if (sigByte == 'D' || sigByte == 'J')
+            argv++;
+    }*/
+
+    types[dstArg] = 0;
+
+    if (h_NativeMethodHelper) {
+	LOGE("Calling Houdini NativeMethodHelper() with func=%p signature=%s dstArg=%d \n", func, orig_sig, dstArg);
+	for (int i=0;i<dstArg;i++) {
+	    LOGE("    [%d] type=%c value=%X cont=%X\n", i, types[i], values[i], **((int **)values+i));
+	}
+        (*h_NativeMethodHelper)(0, func, first_sig, pReturn, dstArg, types, values);
+    } else {
+	LOGE("h_NativeMethodHelper is NULL...\n");
+    }
+}
+#endif //0
+
 /*
  * General form, handles all cases.
  */
@@ -1149,10 +1220,17 @@ void dvmCallJNIMethod(const u4* args, JValue* pResult, const Method* method, Thr
 
     JNIEnv* env = self->jniEnv;
     COMPUTE_STACK_SUM(self);
-    dvmPlatformInvoke(env,
+    if (method->is_arm) {
+        my_dvmPlatformInvoke(env,
             (ClassObject*) staticMethodClass,
             method->jniArgInfo, method->insSize, modArgs, method->shorty,
             (void*) method->insns, pResult);
+    } else {
+        dvmPlatformInvoke(env,
+            (ClassObject*) staticMethodClass,
+            method->jniArgInfo, method->insSize, modArgs, method->shorty,
+            (void*) method->insns, pResult);
+    }
     CHECK_STACK_SUM(self);
 
     dvmChangeStatus(self, oldStatus);
