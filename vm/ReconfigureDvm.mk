@@ -26,6 +26,10 @@ endif
 
 include $(LOCAL_PATH)/Dvm.mk
 
+ifeq ($(INTEL_HOUDINI),true)
+    LOCAL_CFLAGS += -DWITH_HOUDINI
+endif
+
 LOCAL_SHARED_LIBRARIES += \
 	libcorkscrew \
 	libcutils \
@@ -36,6 +40,10 @@ LOCAL_SHARED_LIBRARIES += \
 	libz
 
 LOCAL_STATIC_LIBRARIES += libdex
+
+ifeq ($(INTEL_HOUDINI),true)
+    LOCAL_STATIC_LIBRARIES += libhoudini_hook
+endif
 
 LOCAL_C_INCLUDES += external/stlport/stlport bionic/ bionic/libstdc++/include
 LOCAL_SHARED_LIBRARIES += libstlport
