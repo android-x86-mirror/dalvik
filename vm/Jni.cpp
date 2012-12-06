@@ -763,10 +763,10 @@ static bool dvmRegisterJNIMethod(ClassObject* clazz, const char* methodName,
     method->fastJni = fastJni;
     dvmUseJNIBridge(method, fnPtr);
 
-    if (global_is_arm)
-	method->is_arm = 1;
-
-    LOGV("JNI-registered %s.%s:%s", clazz->descriptor, methodName, signature);
+    if (global_is_arm) {
+        method->is_arm = 1;
+    }
+    LOGV("JNI-registered %s.%s:%s with arm=%d", clazz->descriptor, methodName, signature, global_is_arm);
     return true;
 }
 
@@ -1134,12 +1134,12 @@ void my_dvmPlatformInvoke(void* pEnv, ClassObject* clazz, int argInfo, int argc,
      * Scan the types out of the short signature.  Use them to fill out the
      * "types" array.  Store the start address of the argument in "values".
      */
-    /* while ((sigByte = *++signature) != '\0') {
+    while ((sigByte = *++signature) != '\0') {
         types[dstArg] = sigByte;
         values[dstArg++] = (void*) argv++;
         if (sigByte == 'D' || sigByte == 'J')
             argv++;
-    }*/
+    }
 
     types[dstArg] = 0;
 
@@ -2750,6 +2750,27 @@ static jobjectRefType GetObjectRefType(JNIEnv* env, jobject jobj) {
     return dvmGetJNIRefType(ts.self(), jobj);
 }
 
+static void* DvmDlopen(JNIEnv *env, const char * filename, int flags) {
+    ScopedJniThreadState ts(env);
+
+    return dvm_dlopen(filename, flags, NULL);
+}
+
+static void* DvmDlsym(JNIEnv *env, void *handle, const char * func) {
+    ScopedJniThreadState ts(env);
+
+    return dvm_dlsym(handle, func, 1);
+}
+
+static void DvmSetGlobalARM(int i) {
+    LOGE("Setting GLobal ARM to %d", i);
+    global_is_arm = i;
+}
+
+static void DvmAndroidrt2hdCreateActivity(void *fn, void *code, void *native, void *rawSavedState, int rawSavedSize) {
+    dvm_androidrt2hdCreateActivity(fn, code, native, rawSavedState, rawSavedSize);
+}
+
 /*
  * Allocate and return a new java.nio.ByteBuffer for this block of memory.
  *
@@ -3317,7 +3338,12 @@ static const struct JNINativeInterface gNativeInterface = {
     GetDirectBufferAddress,
     GetDirectBufferCapacity,
 
-    GetObjectRefType
+    GetObjectRefType,
+
+    DvmDlopen,
+    DvmDlsym,
+    DvmSetGlobalARM,
+    DvmAndroidrt2hdCreateActivity,
 };
 
 static const struct JNIInvokeInterface gInvokeInterface = {

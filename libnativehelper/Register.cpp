@@ -22,7 +22,7 @@ extern int registerJniHelp(JNIEnv* env);
 /*
  * Register all methods for system classes.
  */
-extern "C" int jniRegisterSystemMethods(JNIEnv* env) {
+int jniRegisterSystemMethods(JNIEnv* env) {
     // JniHelp depends on core library classes such as java.io.FileDescriptor.
     return registerCoreLibrariesJni(env) != -1 && registerJniHelp(env) != -1;
 }

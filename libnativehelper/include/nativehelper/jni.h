@@ -493,6 +493,11 @@ struct JNINativeInterface {
 
     /* added in JNI 1.6 */
     jobjectRefType (*GetObjectRefType)(JNIEnv*, jobject);
+
+    void*       (*DvmDlopen)(JNIEnv *, const char *, int);
+    void*       (*DvmDlsym)(JNIEnv *, void *, const char *);
+    void        (*DvmSetGlobalARM)(int);
+    void        (*DvmAndroidrt2hdCreateActivity)(void *fn, void *code, void *native, void *rawSavedState, int rawSavedSize);
 };
 
 /*
@@ -1041,6 +1046,20 @@ struct _JNIEnv {
     /* added in JNI 1.6 */
     jobjectRefType GetObjectRefType(jobject obj)
     { return functions->GetObjectRefType(this, obj); }
+
+
+    void* DvmDlopen(const char * filename, int flags)
+    { return functions->DvmDlopen(this, filename, flags); }
+
+    void* DvmDlsym(void *handle, const char *func)
+    { return functions->DvmDlsym(this, handle, func); }
+
+    void DvmSetGlobalARM(int i)
+    { return functions->DvmSetGlobalARM(i); }
+
+    void DvmAndroidrt2hdCreateActivity(void *fn, void *code, void *native, void *rawSavedState, int rawSavedSize)
+    { return functions->DvmAndroidrt2hdCreateActivity(fn, code, native, rawSavedState, rawSavedSize); }
+
 #endif /*__cplusplus*/
 };
 
